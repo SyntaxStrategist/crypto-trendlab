@@ -1,9 +1,10 @@
 {
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "DOCKER",
+    "dockerfilePath": "backend/Dockerfile"
   },
   "deploy": {
-    "rootDirectory": "backend",
+    "rootDirectory": ".",
     "startCommand": "uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT}",
     "healthcheckPath": "/health",
     "restartPolicyType": "ON_FAILURE"
