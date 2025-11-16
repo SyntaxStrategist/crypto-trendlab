@@ -19,11 +19,21 @@ export function TVChart({ symbol, timeframe = "5m", className }: Props) {
 
   useEffect(() => {
     if (!containerRef.current) return;
+    const prefersDark =
+      typeof window !== "undefined" &&
+      (window.matchMedia?.("(prefers-color-scheme: dark)").matches ||
+        document.documentElement.classList.contains("dark"));
+    const styles = getComputedStyle(document.documentElement);
+    const fgVar = styles.getPropertyValue("--color-foreground")?.trim();
+    const textColor = fgVar && /^#|rgb|hsl/.test(fgVar) ? fgVar : prefersDark ? "#ededed" : "#171717";
+    const gridColor = prefersDark ? "rgba(255,255,255,.15)" : "rgba(0,0,0,.15)";
+    const borderColor = prefersDark ? "rgba(255,255,255,.15)" : "rgba(0,0,0,.15)";
+
     const chart = createChart(containerRef.current, {
-      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "var(--color-foreground)" },
-      grid: { vertLines: { color: "rgba(0,0,0,.1)" }, horzLines: { color: "rgba(0,0,0,.1)" } },
-      rightPriceScale: { borderColor: "rgba(0,0,0,.1)" },
-      timeScale: { borderColor: "rgba(0,0,0,.1)", timeVisible: true, secondsVisible: false },
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor },
+      grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
+      rightPriceScale: { borderColor },
+      timeScale: { borderColor, timeVisible: true, secondsVisible: false },
       crosshair: { mode: 1 },
       height: 360,
     });
