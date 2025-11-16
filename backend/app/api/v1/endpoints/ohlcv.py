@@ -31,12 +31,16 @@ def _normalize_coinbase_symbol(symbol: str, markets: Dict[str, Any]) -> str:
 	Normalize user symbol (e.g. BTC/USDT) to a Coinbase-supported one (e.g. BTC/USD).
 	"""
 	raw = symbol.upper()
-	if raw in markets:
-		return raw
+	# Prefer USD mapping for USDT pairs on Coinbase if available
 	if raw.endswith("/USDT"):
 		alt = raw.replace("/USDT", "/USD")
 		if alt in markets:
 			return alt
+		# if no USD alt, fall back to raw and let validation handle it
+		return raw
+	# otherwise, keep as-is if supported
+	if raw in markets:
+		return raw
 	# fall back to raw; validation will handle unsupported ones
 	return raw
 
@@ -64,6 +68,8 @@ def get_ohlcv(
 			"timeout": 7000,  # 7s network timeout
 		})
 
+		logger.info("OHLCV: instantiated exchange", extra={"exchange_id": getattr(exchange, "id", None)})
+
 		logger.info("OHLCV: loading markets for Coinbase")
 		try:
 			markets = exchange.load_markets()
@@ -75,6 +81,15 @@ def get_ohlcv(
 			)
 
 		internal_symbol = _normalize_coinbase_symbol(symbol, markets)
+		# If caller used USDT, enforce a normalized mapping when possible
+		if symbol.upper().endswith("/USDT") and internal_symbol == symbol.upper():
+			alt = symbol.upper().replace("/USDT", "/USD")
+			if alt in markets:
+				logger.warning(
+					"OHLCV: forcing USDT -> USD normalization",
+					extra={"requested": symbol, "normalized": alt},
+				)
+				internal_symbol = alt
 		if internal_symbol not in markets:
 			logger.warning("OHLCV: symbol not available on Coinbase", extra={"requested": symbol, "normalized": internal_symbol})
 			raise HTTPException(
