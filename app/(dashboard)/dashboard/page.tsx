@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/Card";
-import { ChartPlaceholder } from "@/components/ui/ChartPlaceholder";
+import { TVChart } from "@/components/charts/TVChart";
 import { TablePlaceholder } from "@/components/ui/TablePlaceholder";
 
 export default function DashboardPage() {
@@ -7,7 +7,7 @@ export default function DashboardPage() {
     <div className="mx-auto grid max-w-7xl gap-6 md:grid-cols-3">
       <div className="md:col-span-2">
         <Card title="Overview">
-          <ChartPlaceholder />
+          <TVChart symbol="BTC/USDT" timeframe="5m" />
         </Card>
       </div>
       <div className="md:col-span-1 space-y-6">
