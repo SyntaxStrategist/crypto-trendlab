@@ -3,8 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from .core.config import get_settings
 from .api.v1.router import api_router
 from .db import init_db, SessionLocal
-from .models.forward_test import ForwardTestRun
-from .services.forward_test import step_run
 import asyncio
 import logging
 
@@ -38,12 +36,19 @@ def create_app() -> FastAPI:
 
 	@app.on_event("startup")
 	async def on_startup() -> None:
-		# ensure DB schema exists
-		init_db()
-
 		logger = logging.getLogger(__name__)
 
+		# Initialize DB but don't crash the app if it fails; log instead.
+		try:
+			init_db()
+		except Exception:
+			logger.exception("Startup: init_db failed")
+
 		async def worker() -> None:
+			# Import inside worker to avoid impacting app startup or /health if something goes wrong.
+			from .models.forward_test import ForwardTestRun  # type: ignore
+			from .services.forward_test import step_run  # type: ignore
+
 			while True:
 				try:
 					db = SessionLocal()
@@ -58,7 +63,10 @@ def create_app() -> FastAPI:
 					logger.exception("Forward test worker: unexpected error")
 				await asyncio.sleep(300)  # 5 minutes
 
-		asyncio.create_task(worker())
+		try:
+			asyncio.create_task(worker())
+		except Exception:
+			logger.exception("Startup: failed to schedule forward test worker")
 
 	return app
 
