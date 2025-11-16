@@ -2,6 +2,7 @@ export type Candle = { t: number; iso: string; o: number; h: number; l: number; 
 export type OHLCVResponse = {
   exchange: "coinbase";
   symbol: string;
+  normalized_symbol?: string;
   timeframes: {
     "5m": Candle[];
     "15m": Candle[];

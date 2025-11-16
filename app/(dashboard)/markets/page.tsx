@@ -9,6 +9,7 @@ import { LearningPanel } from "@/components/markets/LearningPanel";
 import { SignalPanel } from "@/components/markets/SignalPanel";
 import { TradePlanPanel } from "@/components/markets/TradePlanPanel";
 import { ChartSettingsPanel } from "@/components/markets/ChartSettingsPanel";
+import { ForwardTestPanel } from "@/components/markets/ForwardTestPanel";
 
 export default function MarketsPage() {
   return (
@@ -21,6 +22,7 @@ export default function MarketsPage() {
       <TrendPanel symbol="BTC/USDT" />
       <VolumePanel symbol="BTC/USDT" />
       <FusionPanel symbol="BTC/USDT" />
+      <ForwardTestPanel symbol="BTC/USDT" />
       <BacktestPanel symbol="BTC/USDT" />
       <LearningPanel symbol="BTC/USDT" />
       <Card>

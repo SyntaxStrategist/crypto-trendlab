@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createChart, ColorType, type IChartApi, type Time } from "lightweight-charts";
 import { fetchOHLCV } from "@/lib/api/ohlcv";
 import { fetchVolume } from "@/lib/api/volume";
@@ -7,6 +7,7 @@ import { fetchTrend } from "@/lib/api/trend";
 import { fetchSignal } from "@/lib/api/signal";
 import { computeEMA, mapCandlesForChart } from "@/lib/chart/indicators";
 import { useChartSettings } from "@/components/charts/useChartSettings";
+import { fetchForwardTestTrades, type ForwardTestTradesResponse } from "@/lib/api/forwardTest";
 
 type Props = {
   symbol: string;
@@ -18,6 +19,7 @@ export function TVChart({ symbol, timeframe = "5m", className }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const [settings] = useChartSettings();
+  const [effectiveSymbol, setEffectiveSymbol] = useState<string>(symbol);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -50,12 +52,16 @@ export function TVChart({ symbol, timeframe = "5m", className }: Props) {
     async function loadAll() {
       try {
         const [ohlcv, trend, volume, signal] = await Promise.all([
-          fetchOHLCV(symbol, 500),
-          fetchTrend(symbol, 500),
-          fetchVolume(symbol, 500),
-          fetchSignal(symbol, 600).catch(() => null),
+          fetchOHLCV(effectiveSymbol, 500),
+          fetchTrend(effectiveSymbol, 500),
+          fetchVolume(effectiveSymbol, 500),
+          fetchSignal(effectiveSymbol, 600).catch(() => null),
         ]);
         if (disposed) return;
+
+        if (ohlcv.normalized_symbol && ohlcv.normalized_symbol !== effectiveSymbol) {
+          setEffectiveSymbol(ohlcv.normalized_symbol);
+        }
         const candles = mapCandlesForChart(ohlcv.timeframes[timeframe]).map(c => ({
           time: c.time as unknown as Time,
           open: c.open,
@@ -126,6 +132,40 @@ export function TVChart({ symbol, timeframe = "5m", className }: Props) {
             text: `${signal.action} (${signal.fusion_grade})`,
           });
         }
+
+        // Forward test trade overlays
+        try {
+          if (typeof window !== "undefined") {
+            const stored = window.localStorage.getItem("forward_test_run_id");
+            const runId = stored ? Number(stored) : NaN;
+            if (!Number.isNaN(runId)) {
+              const tradesRes: ForwardTestTradesResponse = await fetchForwardTestTrades(runId);
+              for (const t of tradesRes.trades) {
+                const entryTime = Math.floor(new Date(t.candle_time).getTime() / 1000) as unknown as Time;
+                markers.push({
+                  time: entryTime,
+                  position: t.direction === "long" ? "belowBar" : "aboveBar",
+                  shape: t.direction === "long" ? "arrowUp" : "arrowDown",
+                  color: t.direction === "long" ? "#22c55e" : "#ef4444",
+                  text: `FT ${t.direction}`,
+                });
+                if (t.exit_price != null) {
+                  const exitTime = entryTime; // for simplicity, use entry candle time; could be refined
+                  const win = (t.profit_loss ?? 0) >= 0;
+                  markers.push({
+                    time: exitTime,
+                    position: win ? "aboveBar" : "belowBar",
+                    shape: win ? "circle" : "circle",
+                    color: win ? "#22c55e" : "#ef4444",
+                    text: t.exit_reason || "exit",
+                  });
+                }
+              }
+            }
+          }
+        } catch {
+          // ignore forward-test overlay errors
+        }
         candleSeries.setMarkers(markers);
         chart.timeScale().fitContent();
       } catch (e) {
@@ -155,7 +195,7 @@ export function TVChart({ symbol, timeframe = "5m", className }: Props) {
       chart.remove();
       chartRef.current = null;
     };
-  }, [symbol, timeframe, settings]);
+  }, [effectiveSymbol, timeframe, settings]);
 
   return <div ref={containerRef} className={className ?? "w-full h-[360px]"} />;
 }
