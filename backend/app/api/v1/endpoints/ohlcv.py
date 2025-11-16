@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Query, HTTPException, status
 from typing import List, Dict, Any
 from datetime import datetime, timezone
+import logging
 import ccxt
 import math
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _map_ohlcv_rows(rows: List[List[float]]) -> List[Dict[str, Any]]:
@@ -22,6 +24,21 @@ def _map_ohlcv_rows(rows: List[List[float]]) -> List[Dict[str, Any]]:
 			"v": float(r[5]) if len(r) > 5 and not (r[5] is None or (isinstance(r[5], float) and math.isnan(r[5]))) else 0.0,
 		})
 	return mapped
+
+
+def _normalize_coinbase_symbol(symbol: str, markets: Dict[str, Any]) -> str:
+	"""
+	Normalize user symbol (e.g. BTC/USDT) to a Coinbase-supported one (e.g. BTC/USD).
+	"""
+	raw = symbol.upper()
+	if raw in markets:
+		return raw
+	if raw.endswith("/USDT"):
+		alt = raw.replace("/USDT", "/USD")
+		if alt in markets:
+			return alt
+	# fall back to raw; validation will handle unsupported ones
+	return raw
 
 
 @router.get("", summary="Get OHLCV data from Coinbase (5m & 15m)")
@@ -44,16 +61,66 @@ def get_ohlcv(
 	try:
 		exchange = ccxt.coinbase({
 			"enableRateLimit": True,
+			"timeout": 7000,  # 7s network timeout
 		})
-		if symbol not in exchange.load_markets():
-			raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Symbol not available on Coinbase: {symbol}")
 
-		tf_5 = exchange.fetch_ohlcv(symbol, timeframe="5m", limit=limit)
-		tf_15 = exchange.fetch_ohlcv(symbol, timeframe="15m", limit=limit)
+		logger.info("OHLCV: loading markets for Coinbase")
+		try:
+			markets = exchange.load_markets()
+		except Exception as e:
+			logger.exception("OHLCV: failed to load markets from Coinbase", extra={"symbol": symbol, "limit": limit})
+			raise HTTPException(
+				status_code=status.HTTP_502_BAD_GATEWAY,
+				detail=f"Failed to load markets from Coinbase: {type(e).__name__}: {e}",
+			)
+
+		internal_symbol = _normalize_coinbase_symbol(symbol, markets)
+		if internal_symbol not in markets:
+			logger.warning("OHLCV: symbol not available on Coinbase", extra={"requested": symbol, "normalized": internal_symbol})
+			raise HTTPException(
+				status_code=status.HTTP_400_BAD_REQUEST,
+				detail=f"Symbol not available on Coinbase: {symbol} (normalized: {internal_symbol})",
+			)
+
+		logger.info(
+			"OHLCV: fetching candles",
+			extra={"symbol": symbol, "normalized": internal_symbol, "limit": limit},
+		)
+		try:
+			tf_5 = exchange.fetch_ohlcv(internal_symbol, timeframe="5m", limit=limit)
+			tf_15 = exchange.fetch_ohlcv(internal_symbol, timeframe="15m", limit=limit)
+		except ccxt.NetworkError as e:
+			logger.exception(
+				"OHLCV: network error fetching OHLCV",
+				extra={"symbol": symbol, "normalized": internal_symbol, "limit": limit},
+			)
+			raise HTTPException(
+				status_code=status.HTTP_502_BAD_GATEWAY,
+				detail=f"Network error fetching OHLCV from Coinbase: {type(e).__name__}: {e}",
+			)
+		except ccxt.ExchangeError as e:
+			logger.exception(
+				"OHLCV: exchange error fetching OHLCV",
+				extra={"symbol": symbol, "normalized": internal_symbol, "limit": limit},
+			)
+			raise HTTPException(
+				status_code=status.HTTP_502_BAD_GATEWAY,
+				detail=f"Exchange error fetching OHLCV from Coinbase: {type(e).__name__}: {e}",
+			)
+		except Exception as e:
+			logger.exception(
+				"OHLCV: unexpected error fetching OHLCV",
+				extra={"symbol": symbol, "normalized": internal_symbol, "limit": limit},
+			)
+			raise HTTPException(
+				status_code=status.HTTP_502_BAD_GATEWAY,
+				detail=f"Failed to fetch OHLCV from Coinbase: {type(e).__name__}: {e}",
+			)
 
 		return {
 			"exchange": "coinbase",
 			"symbol": symbol,
+			"normalized_symbol": internal_symbol,
 			"timeframes": {
 				"5m": _map_ohlcv_rows(tf_5),
 				"15m": _map_ohlcv_rows(tf_15),
@@ -62,6 +129,13 @@ def get_ohlcv(
 	except HTTPException:
 		raise
 	except Exception as e:
-		raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Failed to fetch OHLCV: {e}")
+		logger.exception(
+			"OHLCV: unhandled error in get_ohlcv",
+			extra={"symbol": symbol, "limit": limit},
+		)
+		raise HTTPException(
+			status_code=status.HTTP_502_BAD_GATEWAY,
+			detail=f"Failed to fetch OHLCV: {type(e).__name__}: {e}",
+		)
 
 
