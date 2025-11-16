@@ -5,6 +5,7 @@ import { TrendPanel } from "@/components/markets/TrendPanel";
 import { VolumePanel } from "@/components/markets/VolumePanel";
 import { FusionPanel } from "@/components/markets/FusionPanel";
 import { BacktestPanel } from "@/components/markets/BacktestPanel";
+import { LearningPanel } from "@/components/markets/LearningPanel";
 
 export default function MarketsPage() {
   return (
@@ -15,6 +16,7 @@ export default function MarketsPage() {
       <VolumePanel symbol="BTC/USDT" />
       <FusionPanel symbol="BTC/USDT" />
       <BacktestPanel symbol="BTC/USDT" />
+      <LearningPanel symbol="BTC/USDT" />
       <Card>
         <TablePlaceholder />
       </Card>
