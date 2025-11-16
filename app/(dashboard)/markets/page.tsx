@@ -6,11 +6,13 @@ import { VolumePanel } from "@/components/markets/VolumePanel";
 import { FusionPanel } from "@/components/markets/FusionPanel";
 import { BacktestPanel } from "@/components/markets/BacktestPanel";
 import { LearningPanel } from "@/components/markets/LearningPanel";
+import { SignalPanel } from "@/components/markets/SignalPanel";
 
 export default function MarketsPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <h1 className="text-xl font-semibold">Markets</h1>
+      <SignalPanel symbol="BTC/USDT" />
       <MarketsChart symbol="BTC/USDT" />
       <TrendPanel symbol="BTC/USDT" />
       <VolumePanel symbol="BTC/USDT" />
