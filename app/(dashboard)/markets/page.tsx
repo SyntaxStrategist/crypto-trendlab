@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/Card";
 import { TablePlaceholder } from "@/components/ui/TablePlaceholder";
 import { MarketsChart } from "@/components/markets/MarketsChart";
 import { TrendPanel } from "@/components/markets/TrendPanel";
+import { VolumePanel } from "@/components/markets/VolumePanel";
 
 export default function MarketsPage() {
   return (
@@ -9,6 +10,7 @@ export default function MarketsPage() {
       <h1 className="text-xl font-semibold">Markets</h1>
       <MarketsChart symbol="BTC/USDT" />
       <TrendPanel symbol="BTC/USDT" />
+      <VolumePanel symbol="BTC/USDT" />
       <Card>
         <TablePlaceholder />
       </Card>
