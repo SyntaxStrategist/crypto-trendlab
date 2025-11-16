@@ -10,12 +10,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	build-essential \
 	&& rm -rf /var/lib/apt/lists/*
 
-# Install backend dependencies
-COPY backend/requirements.txt ./requirements.txt
+# Install backend dependencies (context is the backend/ directory)
+COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend source
-COPY backend /app/backend
+# Copy backend source code
+COPY . /app/backend
 
 EXPOSE 8000
 ENV PORT=8000
