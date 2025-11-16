@@ -17,10 +17,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend source code
 COPY . /app/backend
 
+# Expose port (informational; Railway routes to $PORT dynamically)
 EXPOSE 8000
 
-# Start FastAPI via uvicorn on hardcoded port 8000
-# Railway will map its internal routing to this port automatically
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start FastAPI via uvicorn on Railway-assigned $PORT
+# Use shell form to allow $PORT environment variable expansion
+# Default to 8000 if $PORT is not set (for local development)
+CMD uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}
 
 
