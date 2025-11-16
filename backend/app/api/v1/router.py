@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .endpoints import health, ohlcv, signals, backtesting, learning, trend, volume
+from .endpoints import health, ohlcv, signals, backtesting, learning, trend, volume, fusion
 
 api_router = APIRouter()
 
@@ -10,5 +10,6 @@ api_router.include_router(backtesting.router, prefix="/backtesting", tags=["back
 api_router.include_router(learning.router, prefix="/learning", tags=["learning"])
 api_router.include_router(trend.router, prefix="/trend", tags=["trend"])
 api_router.include_router(volume.router, prefix="/volume", tags=["volume"])
+api_router.include_router(fusion.router, prefix="/fusion", tags=["fusion"])
 
 
